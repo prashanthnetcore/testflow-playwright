@@ -1,0 +1,22 @@
+{
+  "name": "testflow",
+  "version": "0.1.0",
+  "description": "A comprehensive SaaS platform for recording, optimizing, and running Playwright test cases",
+  "main": "index.js",
+  "scripts": {
+    "start": "echo \"Please run individual services in their respective directories\" && exit 1",
+    "install:all": "npm run install:frontend && npm run install:backend && npm run install:services",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && npm install",
+    "install:services": "cd services/recorder-service && npm install && cd ../test-runner && npm install && cd ../ai-service && npm install && cd ../scheduler-service && npm install"
+  },
+  "keywords": [
+    "playwright",
+    "testing",
+    "automation",
+    "test",
+    "saas"
+  ],
+  "author": "",
+  "license": "MIT"
+}
