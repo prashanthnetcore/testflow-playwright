@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      - test-automation-network
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/testautomation
+      - RABBITMQ_URI=amqp://rabbitmq
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=test-artifacts
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - minio
+    networks:
+      - test-automation-network
+
+  recorder-service:
+    build:
+      context: ./services/recorder-service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/testautomation
+    volumes:
+      - recordings:/app/recordings
+      - screenshots:/app/screenshots
+    networks:
+      - test-automation-network
+
+  test-runner:
+    build:
+      context: ./services/test-runner
+      dockerfile: Dockerfile
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/testautomation
+      - RABBITMQ_URI=amqp://rabbitmq
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=test-artifacts
+      - WORKING_DIR=/tmp/test-runner
+      - USE_ANCHOR_BROWSER=${USE_ANCHOR_BROWSER:-false}
+      - ANCHOR_BROWSER_URL=${ANCHOR_BROWSER_URL}
+      - ANCHOR_BROWSER_API_KEY=${ANCHOR_BROWSER_API_KEY}
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - minio
+    networks:
+      - test-automation-network
+
+  ai-service:
+    build:
+      context: ./services/ai-service
+      dockerfile: Dockerfile
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/testautomation
+      - RABBITMQ_URI=amqp://rabbitmq
+      - MODEL_PATH=/app/models
+    volumes:
+      - ./models:/app/models
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - test-automation-network
+
+  scheduler-service:
+    build:
+      context: ./services/scheduler-service
+      dockerfile: Dockerfile
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/testautomation
+      - RABBITMQ_URI=amqp://rabbitmq
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - test-automation-network
+
+  mongodb:
+    image: mongo:5
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - test-automation-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - test-automation-network
+
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - test-automation-network
+
+networks:
+  test-automation-network:
+    driver: bridge
+
+volumes:
+  mongodb-data:
+  rabbitmq-data:
+  minio-data:
+  recordings:
+  screenshots:
